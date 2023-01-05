@@ -3,7 +3,7 @@
 //  curveFit
 //
 //  Created by Brad Barakat on 1/2/23.
-//  Finished on 1/3/23.
+//  Finished on 1/3/23. Modified on 1/4/23.
 
 #include "curveFit.hpp"
 
@@ -53,19 +53,19 @@ double findDerErr(vector<double>& data_x, vector<double>& data_y, double (*fun)(
  * @param  fun : A function for the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
  * @param  funDers : A vector of partial derivatives for the model that each take a double (independent variable) and a vector of doubles (adjustable constants)
  * @param  params : A vector of doubles that contains the constants to adjust
- * @param  avoidInd : An index to ignore when iterating through the parameter vector
+ * @param  avoidInd : A vector of ints determining which indices to ignore when iterating through the parameter vector
  * @retval  indAndGrad : A vector of doubles containing the index and the steepest gradient, respectively
  */
-vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, int avoidInd) {
+vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<int>& avoidInd) {
     int index = 0;
     double maxGrad = 0;
     for (int i = 0; i < funDers.size(); i++) {
-        if (i != avoidInd) {
+        if (avoidInd.at(i) == 0) {
             double derErr_i = findDerErr(data_x, data_y, fun, funDers.at(i), params);
             if (abs(derErr_i) >= abs(maxGrad)) {
                 index = i; maxGrad = derErr_i;
             }
-        }
+        } // If avoidInd.at(i) == 1, it means to avoid that index
     }
     vector<double> indAndGrad = {(double)index, maxGrad};
     return indAndGrad;
@@ -80,7 +80,8 @@ vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, 
  * @param  params : A vector of doubles that contains the constants to adjust
  */
 vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params) {
-    return findSteepestGrad(data_x, data_y, fun, funDers, params, -1);
+    vector<int> avoidInd(params.size(), 0); // There are as many parameters as partial derivatives
+    return findSteepestGrad(data_x, data_y, fun, funDers, params, avoidInd);
 }
 
 /**
@@ -90,49 +91,47 @@ vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, 
  * @param  fun : A function for the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
  * @param  funDers : A vector of partial derivatives for the model that each take a double (independent variable) and a vector of doubles (adjustable constants)
  * @param  params : A vector of doubles that contains the constants to adjust
+ * @param  paramsLims : A vector of vectors of doubles that contains the limits for each parameter
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
- * @param  dx : A double for the step away from the parameter value to calculate an approximation of the derivative: f'(x) = (f(x + dx) - f(x - dx)) / (2*dx))
  * @retval  iter : The number of iterations done
  */
-int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramLims, double derTol, double paramTol, double dx) {
+int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramsLims, double derTol, double paramTol) {
     // Set up first iteration
     int iter = 0;
     vector<double> maxIndAndGrad = findSteepestGrad(data_x, data_y, fun, funDers, params);
     double maxGrad = maxIndAndGrad.at(1);
     int maxInd = maxIndAndGrad.at(0);
-    int lastInd = -1;
+    int numOfAI = 0; // number of avoided indices
     vector<double> lastParams = params;
-    int avoidInd = -1;
+    vector<int> avoidInd(params.size(), 0);
     
-    while ((abs(maxGrad) >= derTol)) {
+    while (abs(maxGrad) >= derTol) {
         // Continue setting up this iteration
         iter++;
         lastParams = params;
         // Change parameter, and update vectors
-        minFinderSqErr(data_x, data_y, fun, params, maxInd, paramLims.at(maxInd), derTol, paramTol, 1, dx);
+        zeroDerFinder(data_x, data_y, fun, funDers.at(maxInd), params, maxInd, paramsLims.at(maxInd), derTol, paramTol, 1);
+        findDerErr(data_x, data_y, fun, funDers.at(maxInd), params);
         // What if the program would keep switching back and forth, but to no avail
-        if ((lastParams == params) && (lastInd != maxInd) && (lastInd >= 0)) {
+        if ((lastParams == params) && (numOfAI == avoidInd.size()-1)) {
             maxGrad = 0; // Violate while loop condition to break from it
-            cout << "  Last Params: (" << lastParams.at(0) << ", " << lastParams.at(1) << ")" << endl;
-            cout << "  New Params: (" << params.at(0) << ", " << params.at(1) << ")" << endl;
+            cout << "  The " << params.size() << " parameters did not change in the past " << params.size() << " iterations." << endl;
             cout << "  Broke loop at i = " << iter << endl;
         }
         else {
             // Set up next iteration
-            lastInd = maxInd;
+            if (lastParams == params) {
+                avoidInd.at(maxInd) = 1;
+                numOfAI++;
+            }
+            else {
+                for (int i = 0; i < avoidInd.size(); i++) {avoidInd.at(i) = 0;}
+                numOfAI = 0;
+            }
             maxIndAndGrad = findSteepestGrad(data_x, data_y, fun, funDers, params, avoidInd);
             maxGrad = maxIndAndGrad.at(1);
             maxInd = maxIndAndGrad.at(0);
-            if ((lastParams == params) && (lastInd == maxInd)) {
-                avoidInd = maxInd;
-                maxIndAndGrad = findSteepestGrad(data_x, data_y, fun, funDers, params, avoidInd);
-                maxGrad = maxIndAndGrad.at(1);
-                maxInd = maxIndAndGrad.at(0);
-            }
-            else {
-                avoidInd = -1;
-            }
         }
     }
     
@@ -140,52 +139,35 @@ int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(
 }
 
 /**
- * @brief  An overloaded version of findFitParams() that leaves dx as the default value in the header file
+ * @brief  A function that finds the zero of the derivative of the squared error
  * @param  data_x : A vector of doubles for the data's independent variable
  * @param  data_y : A vector of doubles for the data's dependent variable
  * @param  fun : A function for the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
- * @param  funDers : A vector of partial derivatives for the model that each take a double (independent variable) and a vector of doubles (adjustable constants)
- * @param  params : A vector of doubles that contains the constants to adjust
- * @param  derTol : A double for the tolerance in the derivative of the squared error
- * @param  paramTol : A double for the tolerance in the parameters of the model
- * @retval  iter : The number of iterations done
- */
-int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramLims, double derTol, double paramTol) {
-    return findFitParams(data_x, data_y, fun, funDers, params, paramLims, derTol, paramTol, DEFAULT_DX);
-}
-
-/**
- * @brief  This function attempts to minimize the squared error by changing only one parameter
- * @param  data_x : A vector of doubles for the data's independent variable
- * @param  data_y : A vector of doubles for the data's dependent variable
- * @param  fun : A function for the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
+ * @param  funDer : A function for a derivative of the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
  * @param  params : A vector of doubles that contains the constants to adjust
  * @param  paramInd : A double for the index of the parameter to change
  * @param  paramLims : A vector of doubles that contains the limits for the parameter to be adusted
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
  * @param  firstTime : An int indicating if the function was called for the first time (1) or was called recursively (0)
- * @param  dx : A double for the step away from the parameter value to calculate an approximation of the derivative: f'(x) = (f(x + dx) - f(x - dx)) / (2*dx))
  * @retval  value : The value of the derivate of the squared error at the set of parameters (post-adjusting)
  */
-double minFinderSqErr(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, int firstTime, double dx) {
+double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), double (*funDer)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, int firstTime) {
     // Declare variables
     double lastArg;
     double value;
-    // Assume the negative bound is the lower one (if this is wrong, the firstTime variable will account for it)
-    double neg = paramLims.at(0), pos = paramLims.at(1);
-    params.at(paramInd) = (paramLims.at(0) + paramLims.at(1))/2; // Start in middle
+    // Determine which bound is lower (if this is wrong, the firstTime variable will account for it)
+    params.at(paramInd) = paramLims.at(0);
+    double neg = findDerErr(data_x, data_y, fun, funDer, params);
+    params.at(paramInd) = paramLims.at(1);
+    double pos = findDerErr(data_x, data_y, fun, funDer, params);
     if (neg < pos) {neg = paramLims.at(0); pos = paramLims.at(1);}
     else {neg = paramLims.at(1); pos = paramLims.at(0);}
     
-    double value1, value2;
+    params.at(paramInd) = (paramLims.at(0) + paramLims.at(1))/2; // Start in middle for bisection method
+    
     do {
-        params.at(paramInd) -= dx;
-        value1 = findSqErr(data_x, data_y, fun, params);
-        params.at(paramInd) += 2*dx;
-        value2 = findSqErr(data_x, data_y, fun, params);
-        value = (value2 - value1)/(2*dx);
-        params.at(paramInd) -= dx;
+        value = findDerErr(data_x, data_y, fun, funDer, params);
         lastArg = params.at(paramInd);
         if (abs(value) > derTol) {
             if (value < 0) {neg = params.at(paramInd); params.at(paramInd) = (neg + pos)/2;}
@@ -199,26 +181,9 @@ double minFinderSqErr(vector<double>& data_x, vector<double>& data_y, double (*f
         double arg0 = params.at(paramInd);
         double val0 = value;
         vector<double> paramLimsFlip = {paramLims.at(1), paramLims.at(0)};
-        value = minFinderSqErr(data_x, data_y, fun, params, paramInd, paramLims, derTol, paramTol, 0, dx);
+        value = zeroDerFinder(data_x, data_y, fun, funDer, params, paramInd, paramLims, derTol, paramTol, 0);
         if (val0 <= value) {params.at(paramInd) = arg0; value = val0;};
     }
     
     return value;
-}
-
-/**
- * @brief  An overloaded version of minFinderSqErr() that leaves dx as the default value in the header file
- * @param  data_x : A vector of doubles for the data's independent variable
- * @param  data_y : A vector of doubles for the data's dependent variable
- * @param  fun : A function for the model that takes a double (independent variable) and a vector of doubles (adjustable constants)
- * @param  params : A vector of doubles that contains the constants to adjust
- * @param  paramInd : A double for the index of the parameter to change
- * @param  paramLims : A vector of doubles that contains the limits for the parameter to be adusted
- * @param  derTol : A double for the tolerance in the derivative of the squared error
- * @param  paramTol : A double for the tolerance in the parameters of the model
- * @param  firstTime : An int indicating if the function was called for the first time (1) or was called recursively (0)
- * @retval  value : The value of the derivate of the squared error at the set of parameters (post-adjusting)
- */
-double minFinderSqErr(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, int firstTime) {
-    return minFinderSqErr(data_x, data_y, fun, params, paramInd, paramLims, derTol, paramTol, firstTime, DEFAULT_DX);
 }
