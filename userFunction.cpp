@@ -3,7 +3,7 @@
 //  curveFit
 //
 //  Created by Brad Barakat on 1/2/23.
-//  Finished on 1/3/23.
+//  This file will be modified for each new function to fit.
 
 #include <ctime> // For time test in main()
 #include <cstdio>
@@ -24,15 +24,14 @@ int main() {
     vector<double> bLims = {0,1};
     vector<double> cLims = {-2,-1};
     vector<vector<double>> userLims = {aLims, bLims, cLims};
-    double derTol = 0.000001; // This is for the gradient. If you make it too small, the code will run for a long time.
+    double derTol = 0.000001; // This is for the gradient. If you make it too small, the code may run for a long time.
     double paramTol = 0.00000005;
-    double dx = 0.00001;
     
     clock_t t = clock();
     
     cout << "Old parameters: "; printVector(userParams);
     cout << "Old sqErr = " << findSqErr(x, y, userFun, userParams) << endl;
-    int iterations = findFitParams(x, y, userFun, userFunDers, userParams, userLims, derTol, paramTol, dx);
+    int iterations = findFitParams(x, y, userFun, userFunDers, userParams, userLims, derTol, paramTol);
     cout << "Iterations: " << iterations << endl;
     cout << "New parameters: "; printVector(userParams);
     cout << "New sqErr = " << findSqErr(x, y, userFun, userParams) << endl;
@@ -95,13 +94,11 @@ double userFun_dc(double x, vector<double>& params) {
 }
 
 /**
- * @brief  This function is a partial derivative of the model that the user wants to fit to data
+ * @brief  This function will print out a vector in a line, and then start a new line
  * @param  v : A vector of doubles that will be printed out
  * @retval  void
  */
 void printVector(vector<double> v) {
-    for (double vi : v) {
-        cout << vi << " ";
-    }
+    for (double vi : v) {cout << vi << " ";}
     cout << endl;
 }
