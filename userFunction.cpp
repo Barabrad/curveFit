@@ -74,7 +74,7 @@ double userFun_da(double x, vector<double>& params) {
  * @retval  dydb : A double for the partial derivative output
  */
 double userFun_db(double x, vector<double>& params) {
-    // params = [a, b]
+    // params = [a, b, c]
     // y = a*(1 - b*x^c) -> dy/db = -a*x^c
     double dydb = -1*params[0]*pow(x,params[2]);
     return dydb;
@@ -87,7 +87,7 @@ double userFun_db(double x, vector<double>& params) {
  * @retval  dydb : A double for the partial derivative output
  */
 double userFun_dc(double x, vector<double>& params) {
-    // params = [a, b]
+    // params = [a, b, c]
     // y = a*(1 - b*x^c) -> dy/dc = -a*b*ln(x)*x^c
     double dydc = -1*params[0]*params[1]*log(x)*pow(x,params[2]);
     return dydc;
