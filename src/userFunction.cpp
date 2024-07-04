@@ -17,12 +17,12 @@ void printVector(vector<double> v);
 
 int main() {
     vector<double> x = {1, 2, 4, 8, 16};
-    vector<double> y = {1.076539549, 2.015280133, 2.293402279, 2.381693867, 2.42240895};
+    vector<double> y = {0.7429400422, 1.793159669, 2.075100647, 2.103703704, 2.13058125};
     vector<double> userParams = {2.4, 0.5, -1.65}; // {a, b, c} in y = a*(1 - b*x^c)
     vector<double (*)(double, vector<double>&)> userFunDers = {userFun_da, userFun_db, userFun_dc};
     vector<double> aLims = {1,3};
     vector<double> bLims = {0,1};
-    vector<double> cLims = {-2,-1};
+    vector<double> cLims = {-3,-1};
     vector<vector<double>> userLims = {aLims, bLims, cLims};
     double derTol = 0.000001; // This is for the gradient. If you make it too small, the code may run for a long time.
     double paramTol = 0.00000005;
@@ -61,7 +61,7 @@ double userFun(double x, vector<double>& params) {
  * @retval  dyda : A double for the partial derivative output
  */
 double userFun_da(double x, vector<double>& params) {
-    // params = [a, b]
+    // params = [a, b, c]
     // y = a*(1 - b*x^c) -> dy/da = 1 - b*x^c
     double dyda = 1 - params[1]*pow(x,params[2]);
     return dyda;
@@ -84,7 +84,7 @@ double userFun_db(double x, vector<double>& params) {
  * @brief  This function is a partial derivative of the model that the user wants to fit to data
  * @param  x : A double for the independent variable
  * @param  params : A vector of doubles that contains the constants to adjust
- * @retval  dydb : A double for the partial derivative output
+ * @retval  dydc : A double for the partial derivative output
  */
 double userFun_dc(double x, vector<double>& params) {
     // params = [a, b, c]
@@ -94,9 +94,9 @@ double userFun_dc(double x, vector<double>& params) {
 }
 
 /**
- * @brief  This function will print out a vector in a line, and then start a new line
+ * @brief  This function will print out a vector in a line (using std::cout), and then start a new line
  * @param  v : A vector of doubles that will be printed out
- * @retval  void
+ * @retval  void : void
  */
 void printVector(vector<double> v) {
     for (double vi : v) {cout << vi << " ";}
