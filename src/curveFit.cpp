@@ -4,6 +4,7 @@
 //
 //  Created by Brad Barakat on 1/2/23.
 //  Finished on 1/3/23. Modified on 1/4/23.
+//  Modified by Brad Barakat on 10/31/24.
 
 #include "curveFit.hpp"
 
@@ -94,9 +95,10 @@ vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, 
  * @param  paramsLims : A vector of vectors of doubles that contains the limits for each parameter
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
+ * @param  checkOtherHalf : A boolean indicating if the bisection solver should check the other half if no zero was found in the checked half
  * @retval  iter : The number of iterations done
  */
-int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramsLims, double derTol, double paramTol) {
+int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramsLims, double derTol, double paramTol, bool checkOtherHalf) {
     // Set up first iteration
     int iter = 0;
     vector<double> maxIndAndGrad = findSteepestGrad(data_x, data_y, fun, funDers, params);
@@ -111,9 +113,9 @@ int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(
         iter++;
         lastParams = params;
         // Change parameter, and update vectors
-        zeroDerFinder(data_x, data_y, fun, funDers.at(maxInd), params, maxInd, paramsLims.at(maxInd), derTol, paramTol, 1);
+        zeroDerFinder(data_x, data_y, fun, funDers.at(maxInd), params, maxInd, paramsLims.at(maxInd), derTol, paramTol, true, checkOtherHalf);
         findDerErr(data_x, data_y, fun, funDers.at(maxInd), params);
-        // What if the program would keep switching back and forth, but to no avail
+        // What if the program would keep switching back and forth, but to no avail?
         if ((lastParams == params) && (numOfAI == avoidInd.size()-1)) {
             maxGrad = 0; // Violate while loop condition to break from it
             cout << "  The " << params.size() << " parameters did not change in the past " << params.size() << " iterations." << endl;
@@ -149,10 +151,11 @@ int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(
  * @param  paramLims : A vector of doubles that contains the limits for the parameter to be adusted
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
- * @param  firstTime : An int indicating if the function was called for the first time (1) or was called recursively (0)
+ * @param  firstTime : A boolean indicating if the function was called for the first time (true) or was called recursively (false)
+ * @param  checkOtherHalf : A boolean indicating if the bisection solver should check the other half if no zero was found in the checked half
  * @retval  value : The value of the derivate of the squared error at the set of parameters (post-adjusting)
  */
-double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), double (*funDer)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, int firstTime) {
+double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), double (*funDer)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, bool firstTime, bool checkOtherHalf) {
     // Declare variables
     double lastArg;
     double value;
@@ -166,10 +169,14 @@ double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fu
     
     params.at(paramInd) = (paramLims.at(0) + paramLims.at(1))/2; // Start in middle for bisection method
     
+    bool firstIter = true;
     do {
         value = findDerErr(data_x, data_y, fun, funDer, params);
         lastArg = params.at(paramInd);
         if (abs(value) > derTol) {
+            // Force code to scan other half if this is the recursive call
+            if (checkOtherHalf && firstIter && !firstTime) {value = -value; firstIter = false;}
+            // Adjust bounds
             if (value < 0) {neg = params.at(paramInd); params.at(paramInd) = (neg + pos)/2;}
             else {pos = params.at(paramInd); params.at(paramInd) = (pos + neg)/2;}
         }
@@ -177,12 +184,12 @@ double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fu
     while ((abs(params.at(paramInd)-lastArg) > paramTol) && (abs(value) > derTol));
     
     // What if there is no zero in the scanned half? We must flip the bounds to look at the other half
-    if ((firstTime == 1) && (abs(value) < derTol)) {
+    if ((checkOtherHalf && firstTime) && (abs(value) > derTol)) {
         double arg0 = params.at(paramInd);
         double val0 = value;
         vector<double> paramLimsFlip = {paramLims.at(1), paramLims.at(0)};
-        value = zeroDerFinder(data_x, data_y, fun, funDer, params, paramInd, paramLims, derTol, paramTol, 0);
-        if (val0 <= value) {params.at(paramInd) = arg0; value = val0;};
+        value = zeroDerFinder(data_x, data_y, fun, funDer, params, paramInd, paramLims, derTol, paramTol, false, true);
+        if (abs(val0) <= abs(value)) {params.at(paramInd) = arg0; value = val0;};
     }
     
     return value;

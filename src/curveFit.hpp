@@ -4,6 +4,7 @@
 //
 //  Created by Brad Barakat on 1/2/23.
 //  Finished on 1/3/23. Modified on 1/4/23.
+//  Modified by Brad Barakat on 10/31/24.
 
 #ifndef curveFit_hpp
 #define curveFit_hpp
@@ -67,9 +68,10 @@ vector<double> findSteepestGrad(vector<double>& data_x, vector<double>& data_y, 
  * @param  paramsLims : A vector of vectors of doubles that contains the limits for each parameter 
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
+ * @param  checkOtherHalf : A boolean indicating if the bisection solver should check the other half if no zero was found in the checked half
  * @retval  iter : The number of iterations done
  */
-int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramsLims, double derTol, double paramTol);
+int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), vector<double (*)(double, vector<double>&)>& funDers, vector<double>& params, vector<vector<double>>& paramsLims, double derTol, double paramTol, bool checkOtherHalf);
 
 /**
  * @brief  A function that finds the zero of the derivative of the squared error
@@ -82,9 +84,10 @@ int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(
  * @param  paramLims : A vector of doubles that contains the limits for the parameter to be adusted
  * @param  derTol : A double for the tolerance in the derivative of the squared error
  * @param  paramTol : A double for the tolerance in the parameters of the model
- * @param  firstTime : An int indicating if the function was called for the first time (1) or was called recursively (0)
+ * @param  firstTime : A boolean indicating if the function was called for the first time (true) or was called recursively (false)
+ * @param  checkOtherHalf : A boolean indicating if the bisection solver should check the other half if no zero was found in the checked half
  * @retval  value : The value of the derivate of the squared error at the set of parameters (post-adjusting)
  */
-double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), double (*funDer)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, int firstTime);
+double zeroDerFinder(vector<double>& data_x, vector<double>& data_y, double (*fun)(double, vector<double>&), double (*funDer)(double, vector<double>&), vector<double>& params, double paramInd, vector<double>& paramLims, double derTol, double paramTol, bool firstTime, bool checkOtherHalf);
 
 #endif /* curveFit_hpp */

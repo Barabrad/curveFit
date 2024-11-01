@@ -3,6 +3,7 @@
 //  curveFit
 //
 //  Created by Brad Barakat on 1/2/23.
+//  Modified by Brad Barakat on 10/31/24.
 //  This file will be modified for each new function to fit.
 
 #include <ctime> // For time test in main()
@@ -26,12 +27,16 @@ int main() {
     vector<vector<double>> userLims = {aLims, bLims, cLims};
     double derTol = 0.000001; // This is for the gradient. If you make it too small, the code may run for a long time.
     double paramTol = 0.00000005;
+    // Ideally, the function is continuous within the parameter limits. If there are gaps or jumps,
+    // the binary searcher may be tricked into checking the half that doesn't have the zero.
+    // Thus, there will be an option to have the searcher check the other half if the zero is not found.
+    bool checkOtherHalf = false; // If the fit is messy, setting this to true will likely almost double the runtime.
     
     clock_t t = clock();
     
     cout << "Old parameters: "; printVector(userParams);
     cout << "Old sqErr = " << findSqErr(x, y, userFun, userParams) << endl;
-    int iterations = findFitParams(x, y, userFun, userFunDers, userParams, userLims, derTol, paramTol);
+    int iterations = findFitParams(x, y, userFun, userFunDers, userParams, userLims, derTol, paramTol, checkOtherHalf);
     cout << "Iterations: " << iterations << endl;
     cout << "New parameters: "; printVector(userParams);
     cout << "New sqErr = " << findSqErr(x, y, userFun, userParams) << endl;
@@ -50,47 +55,46 @@ int main() {
 double userFun(double x, vector<double>& params) {
     // params = [a, b, c]
     // y = a*(1 - b*x^c)
-    double y = params[0]*(1 - params[1]*pow(x,params[2]));
-    return y;
+    return params[0]*(1 - params[1]*pow(x,params[2]));
 }
 
 /**
  * @brief  This function is a partial derivative of the model that the user wants to fit to data
  * @param  x : A double for the independent variable
  * @param  params : A vector of doubles that contains the constants to adjust
- * @retval  dyda : A double for the partial derivative output
+ * @retval  partial : A double for the partial derivative output
  */
 double userFun_da(double x, vector<double>& params) {
     // params = [a, b, c]
-    // y = a*(1 - b*x^c) -> dy/da = 1 - b*x^c
-    double dyda = 1 - params[1]*pow(x,params[2]);
-    return dyda;
+    // y = a*(1 - b*x^c)
+    // dy/da = 1 - b*x^c
+    return 1 - params[1]*pow(x,params[2]);
 }
 
 /**
  * @brief  This function is a partial derivative of the model that the user wants to fit to data
  * @param  x : A double for the independent variable
  * @param  params : A vector of doubles that contains the constants to adjust
- * @retval  dydb : A double for the partial derivative output
+ * @retval  partial : A double for the partial derivative output
  */
 double userFun_db(double x, vector<double>& params) {
     // params = [a, b, c]
-    // y = a*(1 - b*x^c) -> dy/db = -a*x^c
-    double dydb = -1*params[0]*pow(x,params[2]);
-    return dydb;
+    // y = a*(1 - b*x^c)
+    // dy/db = -a*x^c
+    return -1*params[0]*pow(x,params[2]);
 }
 
 /**
  * @brief  This function is a partial derivative of the model that the user wants to fit to data
  * @param  x : A double for the independent variable
  * @param  params : A vector of doubles that contains the constants to adjust
- * @retval  dydc : A double for the partial derivative output
+ * @retval  partial : A double for the partial derivative output
  */
 double userFun_dc(double x, vector<double>& params) {
     // params = [a, b, c]
-    // y = a*(1 - b*x^c) -> dy/dc = -a*b*ln(x)*x^c
-    double dydc = -1*params[0]*params[1]*log(x)*pow(x,params[2]);
-    return dydc;
+    // y = a*(1 - b*x^c)
+    // dy/dc = -a*b*ln(x)*x^c
+    return -1*params[0]*params[1]*log(x)*pow(x,params[2]);
 }
 
 /**
