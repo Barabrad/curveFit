@@ -114,7 +114,6 @@ int findFitParams(vector<double>& data_x, vector<double>& data_y, double (*fun)(
         lastParams = params;
         // Change parameter, and update vectors
         zeroDerFinder(data_x, data_y, fun, funDers.at(maxInd), params, maxInd, paramsLims.at(maxInd), derTol, paramTol, true, checkOtherHalf);
-        findDerErr(data_x, data_y, fun, funDers.at(maxInd), params);
         // What if the program would keep switching back and forth, but to no avail?
         if ((lastParams == params) && (numOfAI == avoidInd.size()-1)) {
             maxGrad = 0; // Violate while loop condition to break from it
